@@ -58,9 +58,6 @@ td:first-child {{ text-align:left; font-weight:500; }}
 </head>
 <body>
 <div class="header"><h1>银饰订单 - 店铺明细</h1><p id="dateRange"></p></div>
-<div class="nav">
-  <a href="https://huangyx2016-coder.github.io/lingxing-dashboard/">← 返回主仪表盘</a>
-</div>
 <div class="summary-bar" id="sm"></div>
 <div class="chart-wrap"><canvas id="silverBar"></canvas></div>
 <div class="card">
