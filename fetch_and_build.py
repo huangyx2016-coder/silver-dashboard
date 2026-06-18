@@ -2,37 +2,17 @@
 import json, os
 from datetime import datetime
 
-MAIN_DATA_URL = "https://huangyx2016-coder.github.io/lingxing-dashboard/lingxing_data.json"
-SILVER_KW = ['LIEBLICH','ESSIE','Annamate','CHICLOVE','Billie Bijoux','Van Chloe','ANNIS MUNN','ANNIS','AmorAime','BlingGem','NinaMaid','WISHMISS']
+SILVER_DATA_URL = "https://huangyx2016-coder.github.io/lingxing-dashboard/silver_data.json"
 
 
 def main():
-    # Fetch data from main dashboard
+    # Fetch silver data from main dashboard
     import requests
-    print("Fetching main dashboard data...")
-    resp = requests.get(MAIN_DATA_URL, timeout=30)
+    print("Fetching silver data...")
+    resp = requests.get(SILVER_DATA_URL, timeout=30)
     resp.raise_for_status()
-    full = resp.json()
-    print(f"  {full['total_orders']} total orders, {full['shops_count']} stores")
-
-    # Filter silver stores
-    def match_kw(name):
-        n = name.lower().replace(" ", "")
-        for kw in SILVER_KW:
-            if kw.lower().replace(" ", "") in n:
-                return True
-        return False
-
-    silver_orders = {k: v for k, v in full["orders"].items() if match_kw(k)}
-    silver_total = sum(v["total"] for v in silver_orders.values())
-
-    silver_data = {
-        "pull_time": full.get("pull_time", ""),
-        "dates": full["dates"],
-        "orders": silver_orders,
-        "total_orders": silver_total,
-        "shops_count": len(silver_orders),
-    }
+    silver_data = resp.json()
+    silver_total = silver_data.get("total_orders", 0)
 
     with open("silver_data.json", "w", encoding="utf-8") as f:
         json.dump(silver_data, f, ensure_ascii=False)
