@@ -75,8 +75,8 @@ document.getElementById('sm').innerHTML =
   '<div class="summary-item"><div class="value">'+LX.total_orders.toLocaleString()+'</div><div class="label">银饰总订单</div></div>'+
   '<div class="summary-item"><div class="value">'+LX.shops_count+'</div><div class="label">店铺数</div></div>';
 
+var allStores = Object.entries(LX.orders).sort(function(a,b){{return b[1].total-a[1].total;}});
 if(typeof Chart!=='undefined'){{
-  var allStores = Object.entries(LX.orders).sort(function(a,b){{return b[1].total-a[1].total;}});
   var top = allStores.slice(0,15);
   new Chart(document.getElementById('silverBar'),{{type:'bar',
     data:{{labels:top.map(function(x){{return x[0].length>18?x[0].slice(0,17)+'...':x[0];}}),
