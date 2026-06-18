@@ -30,8 +30,9 @@ jobs:
         run: |
           TOKEN=$(curl -s -X POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal \
             -H "Content-Type: application/json" \
-            -d '{"app_id":"${{ secrets.FEISHU_APP_ID }}","app_secret":"${{ secrets.FEISHU_APP_SECRET }}"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+            -d "{\"app_id\":\"${{ secrets.FEISHU_APP_ID }}\",\"app_secret\":\"${{ secrets.FEISHU_APP_SECRET }}\"}" | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+          MSG=$(python3 -c "import json; print(json.dumps({'text':'银饰仪表盘已更新 https://huangyx2016-coder.github.io/silver-dashboard/'}))")
           curl -s -X POST "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"receive_id":"ou_744c1351a6b58ac8b8e259184cd1dbc8","msg_type":"text","content":"{\"text\":\"银饰仪表盘已更新\nhttps://huangyx2016-coder.github.io/silver-dashboard/\"}"}'
+            -d "{\"receive_id\":\"ou_744c1351a6b58ac8b8e259184cd1dbc8\",\"msg_type\":\"text\",\"content\":$MSG}"
