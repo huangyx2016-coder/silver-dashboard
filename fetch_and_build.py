@@ -105,7 +105,7 @@ document.getElementById('tbl').innerHTML = allStores.length ? h : '<p style="col
 
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"[{now}] Done — {silver_total} silver orders, {len(silver_orders)} stores")
+    print(f"[{now}] Done — {silver_total} silver orders, {silver_data['shops_count']} stores")
 
 
 if __name__ == "__main__":
