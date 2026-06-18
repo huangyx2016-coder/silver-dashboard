@@ -18,7 +18,7 @@ body { font-family: 'Microsoft YaHei', sans-serif; background:#f0f2f5; color:#33
 .header { text-align:center; margin-bottom:16px; }
 .header h1 { font-size:22px; color:#1a1a2e; }
 .header p { color:#666; margin-top:2px; font-size:12px; }
-.card { background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:14px; max-width:1100px; margin-left:auto; margin-right:auto; }
+.card { background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:14px; }
 .card h2 { font-size:14px; margin-bottom:8px; border-bottom:2px solid #70AD47; padding-bottom:5px; }
 .table-wrap { max-height:600px; overflow-y:auto; }
 table { width:100%; border-collapse:collapse; font-size:11px; }
@@ -28,9 +28,9 @@ tr:hover td { background:#f5f7fa; }
 td:first-child { text-align:left; font-weight:500; }
 .num { text-align:right; }
 .total-row td { font-weight:bold; background:#FFF2CC; border-top:2px solid #70AD47; }
-.grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; max-width:1100px; margin-left:auto; margin-right:auto; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .chart-wrap { position:relative; height:350px; }
-.summary-bar { display:flex; gap:14px; margin-bottom:14px; max-width:1100px; margin-left:auto; margin-right:auto; }
+.summary-bar { display:flex; gap:14px; margin-bottom:14px; }
 .summary-item { flex:1; background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); text-align:center; }
 .summary-item .value { font-size:22px; font-weight:bold; color:#70AD47; }
 .summary-item .label { font-size:10px; color:#888; margin-top:1px; }
