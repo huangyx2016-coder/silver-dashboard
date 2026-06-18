@@ -12,6 +12,61 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>银饰订单 - 店铺明细</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/chart.js@4.4.0/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
+<script>
+// Plugin: show values on charts
+Chart.register({id:'showValues',afterDatasetsDraw:function(chart){
+  var ctx=chart.ctx,meta,x,y,val;
+  ctx.save();
+  ctx.font='bold 11px sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='bottom';
+  // Line/bar: show values above
+  chart.data.datasets.forEach(function(ds,di){
+    meta=chart.getDatasetMeta(di);
+    if(!meta||!meta.data)return;
+    meta.data.forEach(function(pt,i){
+      val=ds.data[i];
+      if(val===undefined||val===null||val===0)return;
+      x=pt.x; y=pt.y-6;
+      if(chart.options.indexAxis==='y'){
+        ctx.fillStyle='#333';
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(' '+val.toLocaleString(),x,y);
+      }else{
+        ctx.fillStyle='#333';
+        ctx.fillText(val.toLocaleString(),x,y);
+      }
+    });
+  });
+  ctx.restore();
+},afterDraw:function(chart){
+  if(chart.config.type!=='doughnut'&&chart.config.type!=='pie')return;
+  var ctx=chart.ctx,meta=chart.getDatasetMeta(0);
+  var total=chart.data.datasets[0].data.reduce(function(a,b){return a+b;},0);
+  if(!total)return;
+  ctx.save();
+  meta.data.forEach(function(arc,i){
+    var val=chart.data.datasets[0].data[i];
+    if(!val)return;
+    var pct=Math.round(val/total*100);
+    if(pct<5)return;
+    var angle=(arc.startAngle+arc.endAngle)/2;
+    var r=arc.outerRadius*0.6;
+    var x=arc.x+Math.cos(angle)*r;
+    var y=arc.y+Math.sin(angle)*r;
+    ctx.fillStyle=pct>25?'#fff':'#333';
+    ctx.font='bold 11px sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='bottom';
+    ctx.fillText(pct+'%',x,y-2);
+    ctx.font='9px sans-serif';
+    ctx.textBaseline='top';
+    ctx.fillText(val.toLocaleString()+'单',x,y+2);
+  });
+  ctx.restore();
+}});
+</script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: 'Microsoft YaHei', sans-serif; background:#f0f2f5; color:#333; padding:16px; }
@@ -30,6 +85,7 @@ td:first-child { text-align:left; font-weight:500; }
 .total-row td { font-weight:bold; background:#FFF2CC; border-top:2px solid #70AD47; }
 .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .chart-wrap { position:relative; height:350px; }
+.chart-wrap.wide { height:300px; }
 .summary-bar { display:flex; gap:14px; margin-bottom:14px; }
 .summary-item { flex:1; background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); text-align:center; }
 .summary-item .value { font-size:22px; font-weight:bold; color:#70AD47; }
@@ -40,6 +96,7 @@ td:first-child { text-align:left; font-weight:500; }
 <body>
 <div class="header"><h1>银饰订单 - 店铺明细</h1><p id="dateRange"></p></div>
 <div class="summary-bar" id="sm"></div>
+<div class="card"><h2>近7天每日总订单趋势</h2><div class="chart-wrap wide"><canvas id="lineChart"></canvas></div></div>
 <div class="grid">
   <div class="card"><h2>银饰店铺 Top 10</h2><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
   <div class="card"><h2>店铺订单占比</h2><div class="chart-wrap"><canvas id="pieChart"></canvas></div></div>
@@ -68,17 +125,28 @@ var LX = __DATA__;
     '<div class="summary-item"><div class="value">'+LX.shops_count+'</div><div class="label">店铺数</div></div>'+
     '<div class="summary-item"><div class="value">'+stockAvail.toLocaleString()+'</div><div class="label">FBA可售库存</div></div>';
 
-  // Bar chart: Top 10
   if(typeof Chart!=='undefined'){
+
+    // Line chart: daily total trend
+    var dailyTotals = dates.map(function(d){
+      var t=0;
+      for(var i=0; i<allStores.length; i++){ t += (allStores[i][1].daily[d]||0); }
+      return t;
+    });
+    new Chart(document.getElementById('lineChart'),{type:'line',
+      data:{labels:dates, datasets:[{data:dailyTotals, borderColor:'#70AD47', backgroundColor:'rgba(112,173,71,0.1)', fill:true, tension:0.3, pointRadius:6, pointBackgroundColor:'#70AD47'}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(c){return c.raw+' 单';}}}},
+        scales:{y:{beginAtZero:true, grid:{display:true}}}}});
+
+    // Bar chart: Top 10
     var top10 = allStores.slice(0,10);
     new Chart(document.getElementById('barChart'),{type:'bar',
       data:{labels:top10.map(function(x){return x[0].length>16?x[0].slice(0,15)+'...':x[0];}),
             datasets:[{data:top10.map(function(x){return x[1].total;}), backgroundColor:'#70AD47', borderRadius:3}]},
       options:{responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{display:true}}}}});
-  }
 
-  // Pie chart
-  if(typeof Chart!=='undefined'){
+    // Pie chart
     var pieLabels=[], pieData=[], otherTotal=0;
     for(var i=0; i<allStores.length; i++){
       if(i<8){ pieLabels.push(allStores[i][0]); pieData.push(allStores[i][1].total); }
