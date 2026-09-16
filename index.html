@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>银饰订单 - 店铺明细</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/chart.js@4.4.0/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
+<script>
+// Plugin: show values on charts
+Chart.register({id:'showValues',afterDatasetsDraw:function(chart){
+  var ctx=chart.ctx,meta,x,y,val;
+  ctx.save();
+  ctx.font='bold 11px sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='bottom';
+  // Line/bar: show values above
+  chart.data.datasets.forEach(function(ds,di){
+    meta=chart.getDatasetMeta(di);
+    if(!meta||!meta.data)return;
+    meta.data.forEach(function(pt,i){
+      val=ds.data[i];
+      if(val===undefined||val===null||val===0)return;
+      x=pt.x; y=pt.y-6;
+      if(chart.options.indexAxis==='y'){
+        ctx.fillStyle='#333';
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(' '+val.toLocaleString(),x,y);
+      }else{
+        ctx.fillStyle='#333';
+        ctx.fillText(val.toLocaleString(),x,y);
+      }
+    });
+  });
+  ctx.restore();
+},afterDraw:function(chart){
+  if(chart.config.type!=='doughnut'&&chart.config.type!=='pie')return;
+  var ctx=chart.ctx,meta=chart.getDatasetMeta(0);
+  var total=chart.data.datasets[0].data.reduce(function(a,b){return a+b;},0);
+  if(!total)return;
+  ctx.save();
+  meta.data.forEach(function(arc,i){
+    var val=chart.data.datasets[0].data[i];
+    if(!val)return;
+    var pct=Math.round(val/total*100);
+    if(pct<5)return;
+    var angle=(arc.startAngle+arc.endAngle)/2;
+    var r=arc.outerRadius*0.6;
+    var x=arc.x+Math.cos(angle)*r;
+    var y=arc.y+Math.sin(angle)*r;
+    ctx.fillStyle=pct>25?'#fff':'#333';
+    ctx.font='bold 11px sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='bottom';
+    ctx.fillText(pct+'%',x,y-2);
+    ctx.font='9px sans-serif';
+    ctx.textBaseline='top';
+    ctx.fillText(val.toLocaleString()+'单',x,y+2);
+  });
+  ctx.restore();
+}});
+</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Microsoft YaHei', sans-serif; background:#f0f2f5; color:#333; padding:16px; }
+.header { text-align:center; margin-bottom:16px; }
+.header h1 { font-size:22px; color:#1a1a2e; }
+.header p { color:#666; margin-top:2px; font-size:12px; }
+.card { background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:14px; }
+.card h2 { font-size:14px; margin-bottom:8px; border-bottom:2px solid #70AD47; padding-bottom:5px; }
+.table-wrap { max-height:600px; overflow-y:auto; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+th { background:#70AD47; color:#fff; padding:5px 3px; position:sticky; top:0; z-index:1; text-align:center; white-space:nowrap; }
+td { padding:3px; text-align:center; border-bottom:1px solid #eee; }
+tr:hover td { background:#f5f7fa; }
+td:first-child { text-align:left; font-weight:500; }
+.num { text-align:right; }
+.total-row td { font-weight:bold; background:#FFF2CC; border-top:2px solid #70AD47; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.chart-wrap { position:relative; height:350px; }
+.chart-wrap.wide { height:300px; }
+.summary-bar { display:flex; gap:14px; margin-bottom:14px; }
+.summary-item { flex:1; background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 2px 6px rgba(0,0,0,0.06); text-align:center; }
+.summary-item .value { font-size:22px; font-weight:bold; color:#70AD47; }
+.summary-item .label { font-size:10px; color:#888; margin-top:1px; }
+.footer { text-align:right; color:#aaa; font-size:10px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="header"><h1>银饰订单 - 店铺明细</h1><p id="dateRange"></p></div>
+<div class="summary-bar" id="sm"></div>
+<div class="card"><h2>近7天每日总订单趋势</h2><div class="chart-wrap wide"><canvas id="lineChart"></canvas></div></div>
+<div class="grid">
+  <div class="card"><h2>银饰店铺 Top 10</h2><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
+  <div class="card"><h2>店铺订单占比</h2><div class="chart-wrap"><canvas id="pieChart"></canvas></div></div>
+</div>
+<div class="card"><h2>全部银饰店铺</h2><div class="table-wrap" id="ordersTbl">加载中...</div></div>
+<div class="card"><h2>FBA库存</h2><div class="table-wrap" id="stockTbl">加载中...</div></div>
+<div class="footer">数据更新: 2026-09-16 09:00:03 | 页面生成: 2026-09-16 01:05</div>
+
+<script>
+var LX = {"pull_time": "2026-09-16 09:00:03", "dates": ["09/09", "09/10", "09/11", "09/12", "09/13", "09/14", "09/15"], "orders": {"李舒瑶-AMORAIME-东莞市韶辉朗贸易有限公司-US-银饰": {"daily": {"09/09": 25, "09/10": 25, "09/11": 20, "09/12": 22, "09/13": 23, "09/14": 25, "09/15": 10}, "amount": {"09/09": 947.93, "09/10": 966.26, "09/11": 813.14, "09/12": 829.92, "09/13": 874.22, "09/14": 951.43, "09/15": 385.75}, "total": 150, "total_amount": 5768.65}, "ANNIS-US-US": {"daily": {"09/09": 13, "09/10": 16, "09/11": 13, "09/12": 27, "09/13": 15, "09/14": 24, "09/15": 16}, "amount": {"09/09": 561.12, "09/10": 674.62, "09/11": 531.68, "09/12": 1166.15, "09/13": 576.03, "09/14": 950.29, "09/15": 665.58}, "total": 124, "total_amount": 5125.47}, "NINAMAID-US": {"daily": {"09/09": 17, "09/10": 10, "09/11": 26, "09/12": 25, "09/13": 12, "09/14": 19, "09/15": 11}, "amount": {"09/09": 796.25, "09/10": 484.65, "09/11": 1079.18, "09/12": 1124.9, "09/13": 582.17, "09/14": 916.2, "09/15": 518.45}, "total": 120, "total_amount": 5501.8}, "LIEBLICH-US": {"daily": {"09/09": 18, "09/10": 18, "09/11": 18, "09/12": 16, "09/13": 18, "09/14": 14, "09/15": 7}, "amount": {"09/09": 193.4, "09/10": 180.59, "09/11": 204.48, "09/12": 167.46, "09/13": 194.99, "09/14": 147.41, "09/15": 73.84}, "total": 109, "total_amount": 1162.17}, "熊燃-Annamate-深圳市伽例电子商务有限公司-US": {"daily": {"09/09": 12, "09/10": 17, "09/11": 15, "09/12": 15, "09/13": 14, "09/14": 21, "09/15": 10}, "amount": {"09/09": 544.41, "09/10": 780.06, "09/11": 676.0, "09/12": 680.39, "09/13": 637.35, "09/14": 906.91, "09/15": 456.43}, "total": 104, "total_amount": 4681.55}, "NINAMAID-CA": {"daily": {"09/09": 11, "09/10": 6, "09/11": 3, "09/12": 7, "09/13": 5, "09/14": 8, "09/15": 6}, "amount": {"09/09": 574.86, "09/10": 307.11, "09/11": 157.16, "09/12": 359.56, "09/13": 257.61, "09/14": 409.44, "09/15": 315.8}, "total": 46, "total_amount": 2381.54}, "梁楚凝+谢晓花-BillieBijoux-US-银饰-东莞市邴昊沛工艺品有限公司": {"daily": {"09/09": 7, "09/10": 2, "09/11": 5, "09/12": 3, "09/13": 8, "09/14": 8, "09/15": 5}, "amount": {"09/09": 361.86, "09/10": 102.44, "09/11": 273.86, "09/12": 146.79, "09/13": 415.05, "09/14": 405.21, "09/15": 251.06}, "total": 38, "total_amount": 1956.27}, "ANNIS-CA-CA": {"daily": {"09/09": 4, "09/10": 6, "09/11": 2, "09/12": 2, "09/13": 5, "09/14": 4, "09/15": 5}, "amount": {"09/09": 206.53, "09/10": 296.07, "09/11": 98.87, "09/12": 91.18, "09/13": 245.96, "09/14": 195.32, "09/15": 235.49}, "total": 28, "total_amount": 1369.42}, "郑晓琪+谢晓花-ESSIE ODILA-US-耳环-深圳美啦文化传媒有限公司": {"daily": {"09/09": 2, "09/10": 2, "09/11": 2, "09/12": 2, "09/13": 1, "09/14": 2, "09/15": 7}, "amount": {"09/09": 116.13, "09/10": 117.29, "09/11": 145.21, "09/12": 115.08, "09/13": 57.73, "09/14": 121.14, "09/15": 401.86}, "total": 18, "total_amount": 1074.44}, "晓琪+晓花-BlingGem-娜缇沛媞CA": {"daily": {"09/09": 3, "09/10": 2, "09/11": 2, "09/12": 3, "09/13": 3, "09/14": 1, "09/15": 3}, "amount": {"09/09": 159.24, "09/10": 91.18, "09/11": 118.3, "09/12": 187.37, "09/13": 189.81, "09/14": 41.99, "09/15": 168.87}, "total": 17, "total_amount": 956.76}, "梁淑芬+谢晓花-VANCHLOE-US-银饰-上海朵沫生物科技有限公司": {"daily": {"09/09": 0, "09/10": 1, "09/11": 4, "09/12": 0, "09/13": 6, "09/14": 2, "09/15": 1}, "amount": {"09/09": 0, "09/10": 47.91, "09/11": 215.49, "09/12": 0, "09/13": 315.87, "09/14": 97.18, "09/15": 69.99}, "total": 14, "total_amount": 746.44}, "梁楚凝+谢晓花-BillieBijoux-CA-银饰-东莞市邴昊沛工艺品有限公司": {"daily": {"09/09": 3, "09/10": 3, "09/11": 0, "09/12": 0, "09/13": 2, "09/14": 1, "09/15": 2}, "amount": {"09/09": 217.11, "09/10": 203.5, "09/11": 0, "09/12": 0, "09/13": 143.49, "09/14": 74.57, "09/15": 135.56}, "total": 11, "total_amount": 774.23}, "熊燃-Chiclove-银饰-US": {"daily": {"09/09": 1, "09/10": 2, "09/11": 0, "09/12": 1, "09/13": 2, "09/14": 3, "09/15": 0}, "amount": {"09/09": 48.71, "09/10": 69.91, "09/11": 0.0, "09/12": 35.24, "09/13": 70.43, "09/14": 109.85, "09/15": 0}, "total": 9, "total_amount": 334.14}, "淑芬+晓花-VANCHLOE-CA-银饰-上海朵沫生物科技有限公司": {"daily": {"09/09": 0, "09/10": 2, "09/11": 0, "09/12": 1, "09/13": 3, "09/14": 1, "09/15": 0}, "amount": {"09/09": 0, "09/10": 157.06, "09/11": 0, "09/12": 45.19, "09/13": 225.17, "09/14": 44.83, "09/15": 0}, "total": 7, "total_amount": 472.25}, "熊燃-Chiclove-银饰-CA": {"daily": {"09/09": 0, "09/10": 1, "09/11": 0, "09/12": 2, "09/13": 2, "09/14": 0, "09/15": 0}, "amount": {"09/09": 0, "09/10": 45.93, "09/11": 0, "09/12": 90.28, "09/13": 83.9, "09/14": 0, "09/15": 0}, "total": 5, "total_amount": 220.11}, "郑晓琪+谢晓花-BlingGem-US-银饰-娜缇沛媞": {"daily": {"09/09": 2, "09/10": 0, "09/11": 0, "09/12": 1, "09/13": 1, "09/14": 0, "09/15": 0}, "amount": {"09/09": 90.54, "09/10": 0, "09/11": 0, "09/12": 46.76, "09/13": 45.41, "09/14": 0, "09/15": 0}, "total": 4, "total_amount": 182.71}, "ANNIS-DE": {"daily": {"09/09": 1, "09/10": 0, "09/11": 2, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 0}, "amount": {"09/09": 36.99, "09/10": 0, "09/11": 68.98, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 0}, "total": 3, "total_amount": 105.97}, "LIEBLICH-MX": {"daily": {"09/09": 0, "09/10": 0, "09/11": 1, "09/12": 1, "09/13": 1, "09/14": 0, "09/15": 0}, "amount": {"09/09": 0, "09/10": 0, "09/11": 279.63, "09/12": 357.66, "09/13": 357.66, "09/14": 0, "09/15": 0}, "total": 3, "total_amount": 994.95}, "WISHMISS-US": {"daily": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 1, "09/14": 0, "09/15": 0}, "amount": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 21.26, "09/14": 0, "09/15": 0}, "total": 1, "total_amount": 21.26}, "LIEBLICH-BR": {"daily": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 1}, "amount": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 72.26}, "total": 1, "total_amount": 72.26}, "淑芬+晓花-BillieBijoux-FR-欧洲": {"daily": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 1}, "amount": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 0, "09/15": 43.99}, "total": 1, "total_amount": 43.99}, "晓琪+晓花-BlingGem-娜缇沛媞DE": {"daily": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 1, "09/15": 0}, "amount": {"09/09": 0, "09/10": 0, "09/11": 0, "09/12": 0, "09/13": 0, "09/14": 32.99, "09/15": 0}, "total": 1, "total_amount": 32.99}}, "warehouse_stock": {"NINAMAID-US美国仓": {"available": 4348, "pending": 4, "inbound": 0, "unsellable": 4, "skus": 114}, "ANNIS-US-US美国仓": {"available": 4169, "pending": 9, "inbound": 0, "unsellable": 3, "skus": 134}, "熊燃-Annamate-深圳市伽例电子商务有限公司-US美国仓": {"available": 2511, "pending": 4, "inbound": 0, "unsellable": 1, "skus": 147}, "ANNIS-CA-CA加拿大仓": {"available": 2008, "pending": 3, "inbound": 0, "unsellable": 0, "skus": 49}, "NINAMAID-CA加拿大仓": {"available": 1785, "pending": 0, "inbound": 448, "unsellable": 0, "skus": 50}, "郑晓琪+谢晓花-ESSIE ODILA-US-耳环-深圳美啦文化传媒有限公司美国仓": {"available": 1404, "pending": 2, "inbound": 0, "unsellable": 1, "skus": 61}, "熊燃-Chiclove-银饰-CA加拿大仓": {"available": 1377, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 40}, "LIEBLICH北美仓": {"available": 1330, "pending": 8, "inbound": 0, "unsellable": 3, "skus": 4}, "梁楚凝+谢晓花-BillieBijoux-US-银饰-东莞市邴昊沛工艺品有限公司美国仓": {"available": 1303, "pending": 5, "inbound": 0, "unsellable": 3, "skus": 126}, "晓琪+晓花-BlingGem-娜缇沛媞CA加拿大仓": {"available": 1002, "pending": 4, "inbound": 0, "unsellable": 1, "skus": 162}, "淑芬+晓花-VANCHLOE-CA-银饰-上海朵沫生物科技有限公司加拿大仓": {"available": 978, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 79}, "李舒瑶-AMORAIME-东莞市韶辉朗贸易有限公司-US-银饰美国仓": {"available": 879, "pending": 195, "inbound": 462, "unsellable": 0, "skus": 74}, "熊燃-Chiclove-银饰-US美国仓": {"available": 765, "pending": 0, "inbound": 0, "unsellable": 5, "skus": 141}, "梁楚凝+谢晓花-BillieBijoux-CA-银饰-东莞市邴昊沛工艺品有限公司加拿大仓": {"available": 730, "pending": 2, "inbound": 0, "unsellable": 1, "skus": 93}, "梁淑芬+谢晓花-VANCHLOE-US-银饰-上海朵沫生物科技有限公司美国仓": {"available": 678, "pending": 3, "inbound": 0, "unsellable": 1, "skus": 78}, "WISHMISS-US美国仓": {"available": 449, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 97}, "郑晓琪+谢晓花-BlingGem-US-银饰-娜缇沛媞北美仓": {"available": 286, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 78}, "李舒瑶-AMORAIME-东莞市韶辉朗贸易有限公司北美仓": {"available": 282, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 14}, "AMORAIME-CA加拿大仓": {"available": 225, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 42}, "ANNISMUNN欧洲仓": {"available": 172, "pending": 0, "inbound": 0, "unsellable": 1, "skus": 47}, "郑晓琪+谢晓花-BlingGem-US-银饰-娜缇沛媞美国仓": {"available": 141, "pending": 0, "inbound": 0, "unsellable": 1, "skus": 168}, "BillieBijoux-EU欧洲仓": {"available": 50, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 108}, "BlingGem欧洲仓": {"available": 39, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 115}, "ANNIS-UK-UK英国仓": {"available": 12, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 51}, "晓琪+晓花-BlingGem-娜缇沛媞UK英国仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 68}, "淑芬+晓花-BillieBijoux-UK-欧洲英国仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 62}, "wishmiss-MX墨西哥仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 22}, "LIEBLICH-US美国仓": {"available": 0, "pending": 2, "inbound": 0, "unsellable": 0, "skus": 26}, "LIEBLICH-BR巴西仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 5}, "LIEBLICH-CA加拿大仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 7}, "LIEBLICH-MX墨西哥仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 4}, "淑芬+晓花-BillieBijoux-FR-欧洲法国仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 2}, "淑芬+晓花-BillieBijoux-DE-欧洲德国仓": {"available": 0, "pending": 0, "inbound": 0, "unsellable": 0, "skus": 4}}, "total_orders": 814, "shops_count": 22};
+
+(function(){
+  var dates = LX.dates;
+  var allStores = Object.entries(LX.orders).sort(function(a,b){ return b[1].total - a[1].total; });
+  var totalOrders = LX.total_orders;
+
+  // Header
+  document.getElementById('dateRange').textContent = dates[0] + ' — ' + dates[dates.length-1] + ' | ' + totalOrders.toLocaleString() + ' 单 | ' + LX.shops_count + ' 店铺';
+
+  // Summary
+  var stockKeys = Object.keys(LX.warehouse_stock || {});
+  var stockAvail = 0;
+  stockKeys.forEach(function(k){ stockAvail += (LX.warehouse_stock[k].available || 0); });
+  document.getElementById('sm').innerHTML =
+    '<div class="summary-item"><div class="value">'+totalOrders.toLocaleString()+'</div><div class="label">银饰总订单</div></div>'+
+    '<div class="summary-item"><div class="value">'+LX.shops_count+'</div><div class="label">店铺数</div></div>'+
+    '<div class="summary-item"><div class="value">'+stockAvail.toLocaleString()+'</div><div class="label">FBA可售库存</div></div>';
+
+  if(typeof Chart!=='undefined'){
+
+    // Line chart: daily total trend
+    var dailyTotals = dates.map(function(d){
+      var t=0;
+      for(var i=0; i<allStores.length; i++){ t += (allStores[i][1].daily[d]||0); }
+      return t;
+    });
+    new Chart(document.getElementById('lineChart'),{type:'line',
+      data:{labels:dates, datasets:[{data:dailyTotals, borderColor:'#70AD47', backgroundColor:'rgba(112,173,71,0.1)', fill:true, tension:0.3, pointRadius:6, pointBackgroundColor:'#70AD47'}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(c){return c.raw+' 单';}}}},
+        scales:{y:{beginAtZero:true, grid:{display:true}}}}});
+
+    // Bar chart: Top 10
+    var top10 = allStores.slice(0,10);
+    new Chart(document.getElementById('barChart'),{type:'bar',
+      data:{labels:top10.map(function(x){return x[0].length>16?x[0].slice(0,15)+'...':x[0];}),
+            datasets:[{data:top10.map(function(x){return x[1].total;}), backgroundColor:'#70AD47', borderRadius:3}]},
+      options:{responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{display:true}}}}});
+
+    // Pie chart
+    var pieLabels=[], pieData=[], otherTotal=0;
+    for(var i=0; i<allStores.length; i++){
+      if(i<8){ pieLabels.push(allStores[i][0]); pieData.push(allStores[i][1].total); }
+      else{ otherTotal += allStores[i][1].total; }
+    }
+    if(otherTotal>0){ pieLabels.push('其他'); pieData.push(otherTotal); }
+    new Chart(document.getElementById('pieChart'),{type:'doughnut',
+      data:{labels:pieLabels, datasets:[{data:pieData, backgroundColor:['#4472C4','#ED7D31','#70AD47','#FFC000','#5B9BD5','#A5A5A5','#FF6B6B','#4ECDC4','#96CEB4']}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right',labels:{font:{size:10},padding:4}}}}});
+  }
+
+  // Orders table
+  var h = '<table><thead><tr><th>店铺</th>';
+  for(var i=0; i<dates.length; i++){ h += '<th>'+dates[i]+'</th>'; }
+  h += '<th>合计</th></tr></thead><tbody>';
+  for(var i=0; i<allStores.length; i++){
+    var s=allStores[i];
+    h += '<tr><td>'+s[0]+'</td>';
+    for(var j=0; j<dates.length; j++){ h += '<td class="num">'+(s[1].daily[dates[j]]||0)+'</td>'; }
+    h += '<td class="num" style="font-weight:bold">'+s[1].total+'</td></tr>';
+  }
+  h += '<tr class="total-row"><td>合计 ('+allStores.length+'店铺)</td>';
+  for(var j=0; j<dates.length; j++){
+    var dt=0;
+    for(var i=0; i<allStores.length; i++){ dt += (allStores[i][1].daily[dates[j]]||0); }
+    h += '<td class="num">'+dt+'</td>';
+  }
+  h += '<td class="num">'+totalOrders+'</td></tr></tbody></table>';
+  document.getElementById('ordersTbl').innerHTML = h;
+
+  // FBA stock table
+  var ws = LX.warehouse_stock || {};
+  var wentries = Object.entries(ws).sort(function(a,b){ return b[1].available - a[1].available; });
+  var sh = '<table><thead><tr><th>仓库</th><th>可售</th><th>待发货</th><th>在途</th><th>不可售</th><th>SKU数</th></tr></thead><tbody>';
+  var totAvail=0, totPend=0, totInb=0, totUns=0, totSku=0;
+  for(var i=0; i<wentries.length; i++){
+    var w=wentries[i];
+    sh += '<tr><td>'+w[0]+'</td><td class="num">'+w[1].available.toLocaleString()+'</td><td class="num">'+w[1].pending.toLocaleString()+'</td><td class="num">'+w[1].inbound.toLocaleString()+'</td><td class="num">'+w[1].unsellable.toLocaleString()+'</td><td class="num">'+w[1].skus+'</td></tr>';
+    totAvail+=w[1].available; totPend+=w[1].pending; totInb+=w[1].inbound; totUns+=w[1].unsellable; totSku+=w[1].skus;
+  }
+  sh += '<tr class="total-row"><td>合计 ('+wentries.length+'仓库)</td><td class="num">'+totAvail.toLocaleString()+'</td><td class="num">'+totPend.toLocaleString()+'</td><td class="num">'+totInb.toLocaleString()+'</td><td class="num">'+totUns.toLocaleString()+'</td><td class="num">'+totSku+'</td></tr></tbody></table>';
+  document.getElementById('stockTbl').innerHTML = wentries.length ? sh : '<p style="color:#999;text-align:center">暂无库存数据</p>';
+})();
+</script>
+</body>
+</html>
