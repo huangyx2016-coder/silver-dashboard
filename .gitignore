@@ -3,3 +3,4 @@
 fetch_and_build.py
 notify_silver.py
 .feishu.env
+run_silver.sh
